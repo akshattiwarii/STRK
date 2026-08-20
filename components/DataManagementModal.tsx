@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   X, 
   Download, 
@@ -27,6 +27,16 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
   userId = "user_akshat",
 }) => {
   const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -64,46 +74,54 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-strk-border bg-[#0d0f18] p-6 shadow-2xl">
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-3 sm:p-4 backdrop-blur-md animate-in fade-in flex items-center justify-center min-h-screen"
+    >
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-strk-border bg-[#0d0f18] shadow-2xl my-auto max-h-[92vh] flex flex-col">
         
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-strk-border/60 pb-3 mb-4">
+        {/* Sticky Header with Permanent Close Button */}
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-strk-border/60 bg-[#0d0f18]/95 backdrop-blur-md px-5 py-3.5 shrink-0">
           <div className="flex items-center space-x-2">
             <div className="rounded-lg bg-cyan-500/10 p-2 text-cyan-400 border border-cyan-500/20">
               <Database className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white">Data & Backup</h2>
-              <p className="text-xs text-strk-textMuted">Local-first persistence & cloud sync readiness</p>
+              <h2 className="text-base sm:text-lg font-black text-white">Data & Backup</h2>
+              <p className="text-[11px] text-strk-textMuted">Local-first persistence & cloud sync readiness</p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close modal"
             className="rounded-lg p-1.5 text-slate-400 hover:bg-surface-200 hover:text-white transition"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {importStatus && (
-          <div className="mb-4 rounded-xl bg-cyan-950/40 border border-cyan-500/40 p-3 text-xs text-cyan-200">
-            {importStatus}
-          </div>
-        )}
+        {/* Scrollable Body */}
+        <div className="overflow-y-auto p-5 space-y-3">
 
-        <div className="space-y-3">
-          
+          {importStatus && (
+            <div className="mb-4 rounded-xl bg-cyan-950/40 border border-cyan-500/40 p-3 text-xs text-cyan-200">
+              {importStatus}
+            </div>
+          )}
+
           {/* Export JSON */}
           <div className="rounded-xl border border-strk-border bg-surface-200/60 p-3.5 flex items-center justify-between">
             <div>
-              <h4 className="text-xs font-bold text-white">Export Full Backup (JSON)</h4>
-              <p className="text-[11px] text-strk-textMuted">Save all logs, streaks, goals, and reflections offline.</p>
+              <h4 className="text-xs font-bold text-white">Export Full Account Data</h4>
+              <p className="text-[11px] text-strk-textMuted">Download all logs, streaks & badges as JSON.</p>
             </div>
             <button
               onClick={handleExport}
-              className="btn-flame flex items-center space-x-1 rounded-lg px-3 py-1.5 text-xs font-bold shrink-0"
+              className="flex items-center space-x-1.5 rounded-lg border border-strk-border bg-surface-200 px-3 py-1.5 text-xs font-bold text-slate-200 hover:text-white hover:border-cyan-500 transition shrink-0"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Export</span>
@@ -113,15 +131,15 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
           {/* Import JSON */}
           <div className="rounded-xl border border-strk-border bg-surface-200/60 p-3.5 flex items-center justify-between">
             <div>
-              <h4 className="text-xs font-bold text-white">Import Backup File</h4>
-              <p className="text-[11px] text-strk-textMuted">Restore your previously saved STRK backup.</p>
+              <h4 className="text-xs font-bold text-white">Import / Restore Backup</h4>
+              <p className="text-[11px] text-strk-textMuted">Restore your database from an existing file.</p>
             </div>
-            <label className="flex items-center space-x-1 rounded-lg border border-cyan-500/40 bg-cyan-950/40 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/60 cursor-pointer shrink-0">
+            <label className="flex items-center space-x-1.5 rounded-lg border border-strk-border bg-surface-200 px-3 py-1.5 text-xs font-bold text-slate-200 hover:text-white hover:border-cyan-500 transition cursor-pointer shrink-0">
               <Upload className="h-3.5 w-3.5" />
               <span>Import</span>
               <input
                 type="file"
-                accept=".json,application/json"
+                accept=".json"
                 onChange={handleImportFile}
                 className="hidden"
               />
@@ -157,8 +175,9 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-5 pt-3 border-t border-strk-border/60 flex justify-end">
+        <div className="mt-auto p-4 border-t border-strk-border/60 flex justify-end shrink-0">
           <button
+            type="button"
             onClick={onClose}
             className="rounded-xl border border-strk-border bg-surface-200 px-4 py-1.5 text-xs font-semibold text-slate-300 hover:text-white"
           >

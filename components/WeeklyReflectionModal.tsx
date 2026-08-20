@@ -59,39 +59,59 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
     onClose();
   };
 
+  // Close on Escape key
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-strk-border bg-[#0d0f18] p-6 shadow-2xl">
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-3 sm:p-4 backdrop-blur-md animate-in fade-in flex items-center justify-center min-h-screen"
+    >
+      <div className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-strk-border bg-[#0d0f18] shadow-2xl my-auto max-h-[92vh] flex flex-col">
         
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-strk-border/60 pb-4">
+        {/* Sticky Header with Permanent Close Button */}
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-strk-border/60 bg-[#0d0f18]/95 backdrop-blur-md px-5 py-3.5 shrink-0">
           <div className="flex items-center space-x-2">
             <div className="rounded-lg bg-purple-500/10 p-2 text-purple-400 border border-purple-500/20">
               <Calendar className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white">Weekly Reflection & Review</h2>
-              <p className="text-xs text-strk-textMuted">
+              <h2 className="text-base sm:text-lg font-black text-white">Weekly Reflection & Review</h2>
+              <p className="text-[11px] text-strk-textMuted">
                 Week of {format(new Date(weekStart), "MMM d")} - {format(new Date(weekEnd), "MMM d")}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close modal"
             className="rounded-lg p-1.5 text-slate-400 hover:bg-surface-200 hover:text-white transition"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
+        {/* Scrollable Body */}
+        <div className="overflow-y-auto p-5 space-y-4">
+
         {error && (
-          <div className="mt-3 flex items-center space-x-2 rounded-lg bg-rose-950/40 border border-rose-500/40 p-2.5 text-xs text-rose-300">
+          <div className="flex items-center space-x-2 rounded-lg bg-rose-950/40 border border-rose-500/40 p-2.5 text-xs text-rose-300">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           
           {/* Self-Rating (1-10) */}
           <div>
@@ -187,6 +207,8 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
           </div>
 
         </form>
+
+        </div>
 
       </div>
     </div>
