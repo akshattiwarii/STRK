@@ -280,7 +280,16 @@ export function saveUserLogs(userId: string, logs: DailyLog[]): void {
 }
 
 export function loadUserGoals(userId: string): Goal[] {
-  return loadFromStorage<Goal[]>(getUserKey(STORAGE_KEYS.GOALS, userId), userId === "user_akshat" ? INITIAL_GOALS : []);
+  if (!userId) return [];
+  const loaded = loadFromStorage<Goal[]>(
+    getUserKey(STORAGE_KEYS.GOALS, userId),
+    userId === "user_akshat" ? INITIAL_GOALS : []
+  );
+  if (userId !== "user_akshat") {
+    // Guarantee that demo seed goals never leak to any new or other user accounts
+    return loaded.filter((g) => g.id !== "goal_dsa_100" && g.id !== "goal_gym_45" && g.id !== "goal_dev_ship");
+  }
+  return loaded;
 }
 
 export function saveUserGoals(userId: string, goals: Goal[]): void {
@@ -291,7 +300,15 @@ export function saveUserGoals(userId: string, goals: Goal[]): void {
 }
 
 export function loadUserReflections(userId: string): WeeklyReflection[] {
-  return loadFromStorage<WeeklyReflection[]>(getUserKey(STORAGE_KEYS.REFLECTIONS, userId), userId === "user_akshat" ? INITIAL_REFLECTIONS : []);
+  if (!userId) return [];
+  const loaded = loadFromStorage<WeeklyReflection[]>(
+    getUserKey(STORAGE_KEYS.REFLECTIONS, userId),
+    userId === "user_akshat" ? INITIAL_REFLECTIONS : []
+  );
+  if (userId !== "user_akshat") {
+    return loaded.filter((r) => r.id !== "refl_w1" && r.id !== "refl_w2");
+  }
+  return loaded;
 }
 
 export function saveUserReflections(userId: string, reflections: WeeklyReflection[]): void {
