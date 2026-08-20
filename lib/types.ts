@@ -27,6 +27,7 @@ export interface DailyLog {
 
 export interface Goal {
   id: string;
+  userId?: string;
   title: string;
   category: Category;
   targetCount: number;

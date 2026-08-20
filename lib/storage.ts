@@ -279,17 +279,44 @@ export function saveUserLogs(userId: string, logs: DailyLog[]): void {
   }
 }
 
+const DEMO_GOAL_IDS = new Set([
+  "goal_dsa_300", 
+  "goal_gym_100", 
+  "goal_ship_saas", 
+  "goal_dsa_100", 
+  "goal_gym_45", 
+  "goal_dev_ship"
+]);
+
+const DEMO_REFL_IDS = new Set([
+  "refl_1", 
+  "refl_2", 
+  "refl_w1", 
+  "refl_w2"
+]);
+
 export function loadUserGoals(userId: string): Goal[] {
   if (!userId) return [];
-  const loaded = loadFromStorage<Goal[]>(
-    getUserKey(STORAGE_KEYS.GOALS, userId),
-    userId === "user_akshat" ? INITIAL_GOALS : []
-  );
+  
   if (userId !== "user_akshat") {
-    // Guarantee that demo seed goals never leak to any new or other user accounts
-    return loaded.filter((g) => g.id !== "goal_dsa_100" && g.id !== "goal_gym_45" && g.id !== "goal_dev_ship");
+    const key = getUserKey(STORAGE_KEYS.GOALS, userId);
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [];
+      const parsed: Goal[] = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      // Guarantee demo seed goals (LeetCode 300, Gym 100, Ship 3 SaaS) are permanently purged for non-demo users
+      const cleanGoals = parsed.filter((g) => !DEMO_GOAL_IDS.has(g.id) && (!g.userId || g.userId === userId));
+      if (cleanGoals.length !== parsed.length) {
+        localStorage.setItem(key, JSON.stringify(cleanGoals));
+      }
+      return cleanGoals;
+    } catch {
+      return [];
+    }
   }
-  return loaded;
+
+  return loadFromStorage<Goal[]>(getUserKey(STORAGE_KEYS.GOALS, "user_akshat"), INITIAL_GOALS);
 }
 
 export function saveUserGoals(userId: string, goals: Goal[]): void {
@@ -301,14 +328,25 @@ export function saveUserGoals(userId: string, goals: Goal[]): void {
 
 export function loadUserReflections(userId: string): WeeklyReflection[] {
   if (!userId) return [];
-  const loaded = loadFromStorage<WeeklyReflection[]>(
-    getUserKey(STORAGE_KEYS.REFLECTIONS, userId),
-    userId === "user_akshat" ? INITIAL_REFLECTIONS : []
-  );
+  
   if (userId !== "user_akshat") {
-    return loaded.filter((r) => r.id !== "refl_w1" && r.id !== "refl_w2");
+    const key = getUserKey(STORAGE_KEYS.REFLECTIONS, userId);
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [];
+      const parsed: WeeklyReflection[] = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const cleanReflections = parsed.filter((r) => !DEMO_REFL_IDS.has(r.id));
+      if (cleanReflections.length !== parsed.length) {
+        localStorage.setItem(key, JSON.stringify(cleanReflections));
+      }
+      return cleanReflections;
+    } catch {
+      return [];
+    }
   }
-  return loaded;
+
+  return loadFromStorage<WeeklyReflection[]>(getUserKey(STORAGE_KEYS.REFLECTIONS, "user_akshat"), INITIAL_REFLECTIONS);
 }
 
 export function saveUserReflections(userId: string, reflections: WeeklyReflection[]): void {
