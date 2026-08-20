@@ -5,6 +5,7 @@ import { UserProfile, StreakStats, Category } from "@/lib/types";
 import { ALL_CATEGORIES } from "@/lib/streakEngine";
 import { DEFAULT_AVATARS, updateUserInRegistry, deleteUserAccount } from "@/lib/auth";
 import { exportAllData } from "@/lib/storage";
+import { cloudUpdateUserProfile } from "@/lib/supabaseClient";
 import { 
   X, 
   User, 
@@ -16,9 +17,11 @@ import {
   LogOut, 
   Check, 
   Link as LinkIcon,
+  Upload,
   Download,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon
 } from "lucide-react";
 import { playSound } from "@/lib/soundEffects";
 
@@ -46,7 +49,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [bio, setBio] = useState(user.bio);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl);
   const [isCustomAvatar, setIsCustomAvatar] = useState(false);
-  const [customAvatarInput, setCustomAvatarInput] = useState("");
+  const [customAvatarInput, setCustomAvatarInput] = useState(user.avatarUrl);
   const [theme, setTheme] = useState(user.theme);
   const [autoFreeze, setAutoFreeze] = useState(user.autoFreezeEnabled);
   const [soundEnabled, setSoundEnabled] = useState(user.soundEnabled);
@@ -54,6 +57,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [focusCategories, setFocusCategories] = useState<Category[]>(user.focusCategories || ["DSA", "Gym"]);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+
+  // Sync state whenever modal opens or user prop updates
+  useEffect(() => {
+    if (isOpen && user) {
+      setName(user.name);
+      setHandle(user.handle);
+      setBio(user.bio);
+      setAvatarUrl(user.avatarUrl);
+      setCustomAvatarInput(user.avatarUrl);
+      setTheme(user.theme);
+      setAutoFreeze(user.autoFreezeEnabled);
+      setSoundEnabled(user.soundEnabled);
+      setIsPublic(user.isPublic);
+      setFocusCategories(user.focusCategories || ["DSA", "Gym"]);
+      setAvatarError("");
+    }
+  }, [isOpen, user]);
 
   // Close on Escape key
   useEffect(() => {
@@ -77,6 +98,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     }
   };
 
+  const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 3 * 1024 * 1024) {
+        setAvatarError("Avatar image must be smaller than 3MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Url = event.target?.result as string;
+        setAvatarUrl(base64Url);
+        setCustomAvatarInput(base64Url);
+        setIsCustomAvatar(false);
+        setAvatarError("");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     const finalAvatar = isCustomAvatar && customAvatarInput.trim() ? customAvatarInput.trim() : avatarUrl;
@@ -91,6 +131,19 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       isPublic,
       focusCategories,
     });
+
+    // Also trigger cloud update if Supabase is active
+    cloudUpdateUserProfile(user.id, {
+      name: name.trim(),
+      handle: handle.trim().replace(/^@/, ""),
+      bio: bio.trim(),
+      avatarUrl: finalAvatar,
+      theme,
+      autoFreezeEnabled: autoFreeze,
+      soundEnabled,
+      isPublic,
+      focusCategories,
+    }).catch(() => {});
 
     if (soundEnabled) playSound("click");
     onUpdateUser(updated);
@@ -121,7 +174,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-white">Hunter Profile & Settings</h2>
-              <p className="text-[11px] text-strk-textMuted">Private profile management</p>
+              <p className="text-[11px] text-strk-textMuted">Permanent profile & avatar customization</p>
             </div>
           </div>
 
@@ -182,21 +235,40 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           {/* Edit Form */}
           <form onSubmit={handleSave} className="space-y-4">
             
-            {/* Avatar Gallery / Custom URL */}
+            {/* Avatar Selection: Presets, Upload File, or Custom URL */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-slate-300">
-                  Avatar
+                <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1">
+                  <ImageIcon className="h-3.5 w-3.5 text-purple-400" />
+                  <span>Profile Avatar</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsCustomAvatar(!isCustomAvatar)}
-                  className="text-[11px] text-orange-400 hover:underline flex items-center space-x-1"
-                >
-                  <LinkIcon className="h-3 w-3" />
-                  <span>{isCustomAvatar ? "Pick Presets" : "Custom URL"}</span>
-                </button>
+                
+                <div className="flex items-center space-x-2">
+                  <label className="text-[11px] text-purple-300 hover:text-white flex items-center space-x-1 cursor-pointer bg-surface-200 px-2 py-0.5 rounded-lg border border-strk-border hover:border-purple-400 transition">
+                    <Upload className="h-3 w-3" />
+                    <span>Upload Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomAvatar(!isCustomAvatar)}
+                    className="text-[11px] text-orange-400 hover:underline flex items-center space-x-1"
+                  >
+                    <LinkIcon className="h-3 w-3" />
+                    <span>{isCustomAvatar ? "Presets" : "URL"}</span>
+                  </button>
+                </div>
               </div>
+
+              {avatarError && (
+                <p className="text-[11px] text-rose-400 mb-1.5">{avatarError}</p>
+              )}
 
               {isCustomAvatar ? (
                 <input
@@ -218,7 +290,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       }}
                       className={`h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 transition ${
                         avatarUrl === av && !isCustomAvatar
-                          ? "border-orange-500 scale-110 shadow-flame-sm"
+                          ? "border-purple-500 scale-110 shadow-purple-glow"
                           : "border-strk-border opacity-60 hover:opacity-100"
                       }`}
                     >
@@ -383,7 +455,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 className="btn-flame flex items-center space-x-1.5 rounded-xl px-5 py-2 text-xs font-bold w-full sm:w-auto justify-center"
               >
                 {savedSuccess ? <Check className="h-4 w-4" /> : null}
-                <span>{savedSuccess ? "Saved!" : "Save Profile Changes"}</span>
+                <span>{savedSuccess ? "Saved Permanently!" : "Save Profile Changes"}</span>
               </button>
             </div>
 
