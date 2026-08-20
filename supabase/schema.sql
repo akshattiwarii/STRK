@@ -7,6 +7,7 @@
 CREATE TABLE IF NOT EXISTS public.profiles (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE,
+  password TEXT,
   name TEXT NOT NULL,
   handle TEXT UNIQUE NOT NULL,
   avatar_url TEXT,
@@ -23,6 +24,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration safeguard for existing tables
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password TEXT;
 
 -- 2. Daily Logs Table
 CREATE TABLE IF NOT EXISTS public.daily_logs (
