@@ -280,7 +280,7 @@ export function saveUserLogs(userId: string, logs: DailyLog[]): void {
 }
 
 export function loadUserGoals(userId: string): Goal[] {
-  return loadFromStorage<Goal[]>(getUserKey(STORAGE_KEYS.GOALS, userId), INITIAL_GOALS);
+  return loadFromStorage<Goal[]>(getUserKey(STORAGE_KEYS.GOALS, userId), userId === "user_akshat" ? INITIAL_GOALS : []);
 }
 
 export function saveUserGoals(userId: string, goals: Goal[]): void {
@@ -291,7 +291,7 @@ export function saveUserGoals(userId: string, goals: Goal[]): void {
 }
 
 export function loadUserReflections(userId: string): WeeklyReflection[] {
-  return loadFromStorage<WeeklyReflection[]>(getUserKey(STORAGE_KEYS.REFLECTIONS, userId), INITIAL_REFLECTIONS);
+  return loadFromStorage<WeeklyReflection[]>(getUserKey(STORAGE_KEYS.REFLECTIONS, userId), userId === "user_akshat" ? INITIAL_REFLECTIONS : []);
 }
 
 export function saveUserReflections(userId: string, reflections: WeeklyReflection[]): void {
@@ -315,8 +315,11 @@ export function loadBadgesFromStorage(userId?: string): Badge[] {
     const key = userId ? getUserKey(STORAGE_KEYS.BADGES, userId) : STORAGE_KEYS.BADGES;
     const item = localStorage.getItem(key);
     if (!item) {
-      localStorage.setItem(key, JSON.stringify(DEFAULT_BADGES));
-      return DEFAULT_BADGES;
+      const initialBadges = userId === "user_akshat"
+        ? DEFAULT_BADGES
+        : DEFAULT_BADGES.map((b) => ({ ...b, unlockedAt: undefined }));
+      localStorage.setItem(key, JSON.stringify(initialBadges));
+      return initialBadges;
     }
     const storedBadges: Badge[] = JSON.parse(item);
     const unlockMap = new Map(
@@ -327,7 +330,7 @@ export function loadBadgesFromStorage(userId?: string): Badge[] {
 
     return DEFAULT_BADGES.map((badge) => ({
       ...badge,
-      unlockedAt: unlockMap.get(badge.id) || badge.unlockedAt,
+      unlockedAt: unlockMap.get(badge.id) || undefined,
     }));
   } catch (err) {
     console.error("Error loading badges:", err);
