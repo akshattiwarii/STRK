@@ -332,17 +332,6 @@ export default function Home() {
     setIsAuthModalOpen(true);
   };
 
-  if (!isClient) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#08090d]">
-        <div className="flex items-center space-x-2 text-orange-500 font-bold">
-          <Flame className="h-6 w-6 animate-flame" />
-          <span>Igniting STRK...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#08090d] text-slate-100 flex flex-col justify-between">
       
