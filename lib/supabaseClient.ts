@@ -56,6 +56,74 @@ export async function cloudFetchUserProfile(userId: string): Promise<UserProfile
   }
 }
 
+export async function cloudRegisterProfile(user: UserProfile): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      email: user.email,
+      password: user.password,
+      name: user.name,
+      handle: user.handle,
+      avatar_url: user.avatarUrl,
+      bio: user.bio,
+      is_public: user.isPublic,
+      theme: user.theme,
+      freeze_tokens: user.freezeTokens,
+      auto_freeze_enabled: user.autoFreezeEnabled,
+      total_xp: user.totalXp,
+      level: user.level,
+      rank_title: user.rankTitle,
+      sound_enabled: user.soundEnabled,
+      focus_categories: user.focusCategories,
+      created_at: user.createdAt,
+      updated_at: new Date().toISOString(),
+    });
+    return !error;
+  } catch (err) {
+    console.error("Cloud register profile error:", err);
+    return false;
+  }
+}
+
+export async function cloudFindProfileByAuth(emailOrHandle: string): Promise<UserProfile | null> {
+  if (!supabase) return null;
+  try {
+    const query = emailOrHandle.trim().toLowerCase().replace(/^@/, "");
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .or(`email.ilike.${query},handle.ilike.${query}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      email: data.email || "",
+      password: data.password || "",
+      name: data.name,
+      handle: data.handle,
+      avatarUrl: data.avatar_url,
+      bio: data.bio || "",
+      isPublic: data.is_public ?? true,
+      theme: data.theme || "ember",
+      freezeTokens: data.freeze_tokens ?? 2,
+      autoFreezeEnabled: data.auto_freeze_enabled ?? true,
+      totalXp: data.total_xp ?? 0,
+      level: data.level ?? 1,
+      rankTitle: data.rank_title ?? "Novice",
+      soundEnabled: data.sound_enabled ?? true,
+      focusCategories: data.focus_categories || ["DSA", "Gym", "Coding"],
+      createdAt: data.created_at,
+    };
+  } catch (err) {
+    console.error("Cloud find profile error:", err);
+    return null;
+  }
+}
+
 export async function cloudUpdateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<boolean> {
   if (!supabase) return false;
   try {

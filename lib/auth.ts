@@ -86,6 +86,55 @@ export interface SignupInput {
   focusCategories?: Category[];
 }
 
+import { cloudRegisterProfile, cloudFindProfileByAuth } from "./supabaseClient";
+
+export async function registerUserAsync(input: SignupInput): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+  const cleanEmail = input.email.trim().toLowerCase();
+  const cleanHandle = input.handle.trim().replace(/^@/, "").toLowerCase();
+
+  const users = getRegisteredUsers();
+  if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
+    return { success: false, error: "An account with this email already exists." };
+  }
+
+  if (users.some((u) => u.handle.toLowerCase() === cleanHandle)) {
+    return { success: false, error: "This @handle is already taken. Please choose another." };
+  }
+
+  if (!input.password || input.password.length < 6) {
+    return { success: false, error: "Password must be at least 6 characters long." };
+  }
+
+  const newUser: UserProfile = {
+    id: `user_${Date.now()}`,
+    email: cleanEmail,
+    password: input.password,
+    name: input.name.trim(),
+    handle: cleanHandle,
+    avatarUrl: input.avatarUrl || DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)],
+    bio: input.bio?.trim() || "Consistency Hunter on STRK • Me vs Me ⚔️",
+    isPublic: true,
+    theme: "ember",
+    freezeTokens: 2,
+    autoFreezeEnabled: true,
+    totalXp: 0,
+    level: 1,
+    rankTitle: "Novice",
+    soundEnabled: true,
+    focusCategories: input.focusCategories || ["DSA", "Gym", "Coding"],
+    createdAt: new Date().toISOString(),
+  };
+
+  const updatedUsers = [...users, newUser];
+  saveRegisteredUsers(updatedUsers);
+  setCurrentSessionUser(newUser);
+
+  // Sync to Supabase PostgreSQL Cloud
+  cloudRegisterProfile(newUser).catch(() => {});
+
+  return { success: true, user: newUser };
+}
+
 export function registerUser(input: SignupInput): { success: boolean; user?: UserProfile; error?: string } {
   const users = getRegisteredUsers();
   const cleanEmail = input.email.trim().toLowerCase();
@@ -127,7 +176,40 @@ export function registerUser(input: SignupInput): { success: boolean; user?: Use
   saveRegisteredUsers(updatedUsers);
   setCurrentSessionUser(newUser);
 
+  cloudRegisterProfile(newUser).catch(() => {});
+
   return { success: true, user: newUser };
+}
+
+export async function loginUserAsync(emailOrHandle: string, password?: string): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+  const query = emailOrHandle.trim().toLowerCase().replace(/^@/, "");
+  const users = getRegisteredUsers();
+
+  let user = users.find(
+    (u) => u.email.toLowerCase() === query || u.handle.toLowerCase() === query
+  );
+
+  // If not found in this device's local registry, query Supabase Cloud Database!
+  if (!user) {
+    const cloudUser = await cloudFindProfileByAuth(query);
+    if (cloudUser) {
+      user = cloudUser;
+      // Cache this profile to local registry on this device (PC/laptop)
+      const existing = users.filter((u) => u.id !== cloudUser.id);
+      saveRegisteredUsers([...existing, cloudUser]);
+    }
+  }
+
+  if (!user) {
+    return { success: false, error: "No account found matching this email or handle." };
+  }
+
+  if (!password || user.password !== password) {
+    return { success: false, error: "Incorrect password. Please try again." };
+  }
+
+  setCurrentSessionUser(user);
+  return { success: true, user };
 }
 
 export function loginUser(emailOrHandle: string, password?: string): { success: boolean; user?: UserProfile; error?: string } {

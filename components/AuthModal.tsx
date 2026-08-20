@@ -20,8 +20,8 @@ import { Category, UserProfile } from "@/lib/types";
 import { ALL_CATEGORIES } from "@/lib/streakEngine";
 import { 
   DEFAULT_AVATARS, 
-  registerUser, 
-  loginUser, 
+  registerUserAsync, 
+  loginUserAsync, 
   isHandleAvailable 
 } from "@/lib/auth";
 import { playSound } from "@/lib/soundEffects";
@@ -62,6 +62,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [selectedFocus, setSelectedFocus] = useState<Category[]>(["DSA", "Gym"]);
 
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Close on Escape key
   useEffect(() => {
@@ -77,6 +78,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (isOpen) {
       setMode(initialMode || "login");
       setError("");
+      setIsLoading(false);
     }
   }, [isOpen, initialMode]);
 
@@ -92,7 +94,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!loginIdentifier.trim() || !loginPassword) {
@@ -100,17 +102,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    const res = loginUser(loginIdentifier, loginPassword);
-    if (res.success && res.user) {
-      if (soundEnabled) playSound("streak");
-      onAuthSuccess(res.user);
-      onClose();
-    } else {
-      setError(res.error || "Invalid credentials. Please check your password.");
+    setIsLoading(true);
+    try {
+      const res = await loginUserAsync(loginIdentifier, loginPassword);
+      if (res.success && res.user) {
+        if (soundEnabled) playSound("streak");
+        onAuthSuccess(res.user);
+        onClose();
+      } else {
+        setError(res.error || "Invalid credentials. Please check your password.");
+      }
+    } catch {
+      setError("Error signing in. Please check your connection.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSignupSubmit = (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!name.trim() || !email.trim() || !handle.trim()) {
@@ -125,29 +134,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     const activeAvatar = isCustomAvatar && customAvatarUrl.trim() ? customAvatarUrl.trim() : selectedAvatar;
 
-    const res = registerUser({
-      name: name.trim(),
-      email: email.trim(),
-      handle: handle.trim(),
-      password,
-      avatarUrl: activeAvatar,
-      bio: bio.trim() || undefined,
-      focusCategories: selectedFocus,
-    });
+    setIsLoading(true);
+    try {
+      const res = await registerUserAsync({
+        name: name.trim(),
+        email: email.trim(),
+        handle: handle.trim(),
+        password,
+        avatarUrl: activeAvatar,
+        bio: bio.trim() || undefined,
+        focusCategories: selectedFocus,
+      });
 
-    if (res.success && res.user) {
-      if (soundEnabled) playSound("levelup");
-      try {
-        confetti({
-          particleCount: 70,
-          spread: 60,
-          origin: { y: 0.6 },
-        });
-      } catch {}
-      onAuthSuccess(res.user);
-      onClose();
-    } else {
-      setError(res.error || "Could not create account.");
+      if (res.success && res.user) {
+        if (soundEnabled) playSound("levelup");
+        try {
+          confetti({
+            particleCount: 70,
+            spread: 60,
+            origin: { y: 0.6 },
+          });
+        } catch {}
+        onAuthSuccess(res.user);
+        onClose();
+      } else {
+        setError(res.error || "Could not create account.");
+      }
+    } catch {
+      setError("Error creating account. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
