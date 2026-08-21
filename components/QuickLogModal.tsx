@@ -19,6 +19,7 @@ import { ALL_CATEGORIES } from "@/lib/streakEngine";
 import { calculateLogXpBreakdown } from "@/lib/gamification";
 import confetti from "canvas-confetti";
 import { playSound } from "@/lib/soundEffects";
+import { format } from "date-fns";
 
 interface QuickLogModalProps {
   isOpen: boolean;
@@ -119,7 +120,7 @@ export const QuickLogModal: React.FC<QuickLogModalProps> = ({
       return;
     }
 
-    const todayDate = new Date().toISOString().split("T")[0];
+    const todayDate = format(new Date(), "yyyy-MM-dd");
 
     onSaveLog({
       date: todayDate,

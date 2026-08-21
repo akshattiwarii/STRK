@@ -47,6 +47,13 @@ import { format } from "date-fns";
 import { Calendar, Plus, Flame } from "lucide-react";
 import { playSound } from "@/lib/soundEffects";
 
+import { 
+  isSupabaseConfigured,
+  cloudFetchUserLogs,
+  cloudFetchUserGoals,
+  cloudFetchUserReflections
+} from "@/lib/supabaseClient";
+
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "analytics" | "goals" | "gamification">("dashboard");
@@ -97,6 +104,35 @@ export default function Home() {
     setBadges(loadedBadges);
     setReflections(loadedReflections);
     setFreezeDates(loadedFreeze);
+
+    // Multi-device real-time sync with Supabase PostgreSQL cloud
+    if (isSupabaseConfigured()) {
+      cloudFetchUserLogs(currentUser.id).then((cloudLogs) => {
+        if (cloudLogs && cloudLogs.length > 0) {
+          setLogs((prev) => {
+            const map = new Map<string, DailyLog>();
+            cloudLogs.forEach((l) => map.set(l.id, l));
+            prev.forEach((l) => map.set(l.id, l));
+            const merged = Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp);
+            saveUserLogs(currentUser.id, merged);
+            return merged;
+          });
+        }
+      }).catch(() => {});
+
+      cloudFetchUserGoals(currentUser.id).then((cloudGoals) => {
+        if (cloudGoals && cloudGoals.length > 0) {
+          setGoals((prev) => {
+            const map = new Map<string, Goal>();
+            cloudGoals.forEach((g) => map.set(g.id, g));
+            prev.forEach((g) => map.set(g.id, g));
+            const merged = Array.from(map.values());
+            saveUserGoals(currentUser.id, merged);
+            return merged;
+          });
+        }
+      }).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
